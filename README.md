@@ -15,8 +15,24 @@ Tout le calcul se fait dans le navigateur : aucun fichier n'est envoyé sur un s
 | **Un calque = une coupe** | Formes : contour du dessin, rectangle, rectangle arrondi, cercle, ellipse. Décalage en mm, lissage, regroupement des éléments proches (lettres d'un texte), trous ignorés ou non, seuil d'opacité, suppression des petites pièces. |
 | **Planche** | Plusieurs visuels, nombre d'exemplaires, imbrication automatique en étagères sur la laize utile (rotation 90° optionnelle), placement à la main (glisser, flèches, R pour pivoter), cadre de coupe autour du travail. |
 | **Support** | Largeur du rouleau (810 mm max), réserve pour les repères RasterLink, espacement entre exemplaires. |
-| **Contrôles avant envoi** | Largeur 800 mm, zone des repères, chevauchements entre exemplaires, pièces < 4 mm, résolution, noms de coupe, longueur > 1 m entre repères. |
+| **Contrôles avant envoi** | Largeur 800 mm, zone des repères, chevauchements entre exemplaires, pièces < 4 mm, résolution, noms de coupe, longueur > 1 m entre repères. **Chaque alerte a ses boutons de correction** (réorganiser, réduire à la laize, ignorer les petits éléments, coupe au ras + fond perdu…). Après l'export, une notification rappelle les conseils restants, avec les mêmes boutons. |
+| **Lettrage** | Texte détecté automatiquement : une coupe par lettre, intérieurs compris (O, A, R…). Mode « Chaque lettre » / « Un seul sticker » en un clic. |
+| **Studio ✨** | Petit éditeur « façon Canva » pour créer un sticker sans autre logiciel : modèles, textes (24 polices libres), images, formes, couleurs, détourage IA. Le sticker part directement sur la planche, découpe calculée. |
 | **Récapitulatif** | Longueur de coupe, temps de coupe estimé, support consommé (m, m²) et coût. |
+
+## Studio
+
+Bouton **✨ Créer** dans la barre d'outils.
+
+- **Modèles** prêts à modifier : Ouvert, Promo, Merci, Nouveau, Bulle, Logo rond, Lettrage, Vierge.
+- **Texte** : titre, sous-titre, petit texte, styles tout faits ; police, taille, gras, alignement, couleur, contour, espacement des lettres, texte en arc.
+- **Images** : PNG/JPG/WebP importés ou glissés-déposés, miroir, **contour « sticker »** de couleur autour du dessin.
+- **✨ Retirer le fond (IA)** : modèle [ormbg](https://huggingface.co/onnx-community/ormbg-ONNX) (Apache 2.0, 44 Mo) exécuté **dans le navigateur** par [Transformers.js](https://github.com/huggingface/transformers.js). Téléchargé une seule fois, puis gardé en cache ; la photo n'est envoyée nulle part.
+- **Formes** : carré, arrondi, rond, étoile, badge, cœur, bulle, bandeau.
+- **Taille** en mm avec formats rapides ; poignées pour redimensionner et pivoter, repères de centrage, annuler/rétablir (⌘Z / ⇧⌘Z), dupliquer (⌘D).
+- **Ajouter à la planche** : rendu PNG 300 dpi, taille exacte en mm. Texte seul → mode « Chaque lettre » ; sinon un contour unique autour du sticker.
+
+Polices : 24 familles [Google Fonts](https://fonts.google.com) sous licence SIL OFL 1.1 / Apache 2.0, hébergées avec l'application (`app/fonts/`, sous-ensemble latin, 1,2 Mo). Pour en changer : éditez la liste dans `build/fetch_fonts.py` puis `python3 build/fetch_fonts.py`.
 
 ## Interface
 
@@ -84,6 +100,10 @@ python3 e2e.py http://localhost:8080/ /tmp/cutlink-fx /tmp
 
 Le test charge le PSD d'exemple, ajoute des exemplaires, exporte le PDF et le relit pour vérifier les tracés par nom. Il importe ensuite un PDF avec nuances CutContour (formulaire XObject, Bézier, tracé ouvert, forme remplie) et un SVG, puis vérifie les interactions et l'absence d'erreur JavaScript.
 
+```bash
+python3 build/e2e_studio.py http://localhost:8080/ /tmp --ai   # Studio + boutons d'action (--ai : teste aussi le détourage, ~45 Mo)
+```
+
 ## Structure
 
 ```
@@ -95,16 +115,19 @@ app/
   js/importers.js   PSD, PDF/AI, SVG, images
   js/pdfcut.js      lecture des flux PDF : récupère et retire les tracés CutContour
   js/pdfout.js      écriture du PDF Print & Cut
+  js/studio.js      Studio : éditeur de sticker (texte, images, formes, IA)
   js/util.js        constantes machine, matrices, helpers
+  fonts/            polices libres (woff2) + fonts.css + fonts.json
+  studio.css        styles du Studio et des alertes à actions
   libs.v1.js        ag-psd + pdf-lib regroupés
   vendor/           pdf.js (rendu des PDF/AI)
   demo.psd
 build/
-  entry.js, mkdemo.js, mkfixtures.js, e2e.py
+  entry.js, mkdemo.js, mkfixtures.js, fetch_fonts.py, e2e.py, e2e_studio.py
 ```
 
 ## Licence
 
-MIT. Bibliothèques incluses sous leurs propres licences : [ag-psd](https://github.com/Agamnentzar/ag-psd) (MIT), [pdf-lib](https://github.com/Hopding/pdf-lib) (MIT), [pdf.js](https://github.com/mozilla/pdf.js) (Apache 2.0).
+MIT. Bibliothèques incluses sous leurs propres licences : [ag-psd](https://github.com/Agamnentzar/ag-psd) (MIT), [pdf-lib](https://github.com/Hopding/pdf-lib) (MIT), [pdf.js](https://github.com/mozilla/pdf.js) (Apache 2.0), polices Google Fonts (SIL OFL 1.1 / Apache 2.0). Chargés à la demande : [Transformers.js](https://github.com/huggingface/transformers.js) (Apache 2.0) et le modèle [ormbg](https://huggingface.co/schirrmacher/ormbg) (Apache 2.0).
 
 *Mimaki, RasterLink et CJV150 sont des marques de Mimaki Engineering Co., Ltd. Adobe, Illustrator et Photoshop sont des marques d'Adobe. Canva est une marque de Canva Pty Ltd. Ce projet n'est affilié à aucune de ces sociétés.*

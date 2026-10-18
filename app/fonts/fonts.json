@@ -1,0 +1,181 @@
+[
+ {
+  "family": "Inter",
+  "weights": [
+   400,
+   800
+  ],
+  "cat": "Moderne"
+ },
+ {
+  "family": "Poppins",
+  "weights": [
+   400,
+   700
+  ],
+  "cat": "Moderne"
+ },
+ {
+  "family": "Montserrat",
+  "weights": [
+   500,
+   800
+  ],
+  "cat": "Moderne"
+ },
+ {
+  "family": "Nunito",
+  "weights": [
+   400,
+   800
+  ],
+  "cat": "Moderne"
+ },
+ {
+  "family": "Fredoka",
+  "weights": [
+   400,
+   700
+  ],
+  "cat": "Fun"
+ },
+ {
+  "family": "Bebas Neue",
+  "weights": [
+   400
+  ],
+  "cat": "Impact"
+ },
+ {
+  "family": "Anton",
+  "weights": [
+   400
+  ],
+  "cat": "Impact"
+ },
+ {
+  "family": "Archivo Black",
+  "weights": [
+   400
+  ],
+  "cat": "Impact"
+ },
+ {
+  "family": "Oswald",
+  "weights": [
+   400,
+   700
+  ],
+  "cat": "Impact"
+ },
+ {
+  "family": "Bungee",
+  "weights": [
+   400
+  ],
+  "cat": "Fun"
+ },
+ {
+  "family": "Luckiest Guy",
+  "weights": [
+   400
+  ],
+  "cat": "Fun"
+ },
+ {
+  "family": "Bangers",
+  "weights": [
+   400
+  ],
+  "cat": "Fun"
+ },
+ {
+  "family": "Righteous",
+  "weights": [
+   400
+  ],
+  "cat": "Fun"
+ },
+ {
+  "family": "Playfair Display",
+  "weights": [
+   400,
+   800
+  ],
+  "cat": "Élégant"
+ },
+ {
+  "family": "DM Serif Display",
+  "weights": [
+   400
+  ],
+  "cat": "Élégant"
+ },
+ {
+  "family": "Abril Fatface",
+  "weights": [
+   400
+  ],
+  "cat": "Élégant"
+ },
+ {
+  "family": "Fraunces",
+  "weights": [
+   400,
+   800
+  ],
+  "cat": "Élégant"
+ },
+ {
+  "family": "Pacifico",
+  "weights": [
+   400
+  ],
+  "cat": "Manuscrit"
+ },
+ {
+  "family": "Lobster",
+  "weights": [
+   400
+  ],
+  "cat": "Manuscrit"
+ },
+ {
+  "family": "Dancing Script",
+  "weights": [
+   400,
+   700
+  ],
+  "cat": "Manuscrit"
+ },
+ {
+  "family": "Caveat",
+  "weights": [
+   400,
+   700
+  ],
+  "cat": "Manuscrit"
+ },
+ {
+  "family": "Permanent Marker",
+  "weights": [
+   400
+  ],
+  "cat": "Manuscrit"
+ },
+ {
+  "family": "Satisfy",
+  "weights": [
+   400
+  ],
+  "cat": "Manuscrit"
+ },
+ {
+  "family": "Space Mono",
+  "weights": [
+   400,
+   700
+  ],
+  "cat": "Technique"
+ }
+]

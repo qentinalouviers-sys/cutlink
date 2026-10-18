@@ -270,7 +270,7 @@ export function computeArt(art, g) {
       const smooth = Math.max(...its.map((i) => i.s.shape === 'contour' ? +i.s.smooth : 1));
       cuts.push({ name, loops: finish(trace({ F: U, x: x0, y: y0, w, h }), smooth), items: its.map((i) => i.id) });
       const pairs = [...overlaps].map((p) => p.split(':').map(Number)).filter(([a, b]) => a >= 0 && b >= 0);
-      if (pairs.length) warnings.push({ t: 'info', m: `${pairs.length} chevauchement(s) fusionné(s) en une seule coupe ${name} : ${pairs.slice(0, 3).map(([a, b]) => `« ${its[a].name} » + « ${its[b].name} »`).join(', ')}${pairs.length > 3 ? '…' : ''}.` });
+      if (pairs.length) warnings.push({ t: 'info', m: `${pairs.length} chevauchement(s) fusionné(s) en une seule coupe ${name} : ${pairs.slice(0, 3).map(([a, b]) => `« ${its[a].name} » + « ${its[b].name} »`).join(', ')}${pairs.length > 3 ? '…' : ''}.`, fix: [{ id: 'mergeOff', label: 'Ne pas fusionner' }] });
       for (const it of its) it.stat = { pieces: finish(trace(fields.get(it.id)), 0).length };
     } else {
       for (const it of its) {
@@ -281,7 +281,7 @@ export function computeArt(art, g) {
       if (!g.merge && its.length > 1) {
         const ov = [];
         for (let a = 0; a < its.length; a++) for (let b = a + 1; b < its.length; b++) if (fieldsOverlap(fields.get(its[a].id), fields.get(its[b].id))) ov.push(`« ${its[a].name} » / « ${its[b].name} »`);
-        if (ov.length) warnings.push({ t: 'warn', m: `Coupes qui se chevauchent : ${ov.slice(0, 3).join(', ')}. La lame passera deux fois. Activez « Fusionner les coupes qui se touchent ».` });
+        if (ov.length) warnings.push({ t: 'warn', m: `Coupes qui se chevauchent : ${ov.slice(0, 3).join(', ')}. La lame passera deux fois.`, fix: [{ id: 'mergeOn', label: 'Fusionner les coupes' }] });
       }
     }
   }
@@ -304,15 +304,25 @@ export function computeArt(art, g) {
   if (boxes.length) { const b = bboxOf(boxes); pb = [b[0] - 0.5, b[1] - 0.5, b[2] + 0.5, b[3] + 0.5]; }
 
   const tiny = all.filter((l) => !l.open).filter((l) => { const b = bboxOf([l]); return Math.min(b[2] - b[0], b[3] - b[1]) < 4; }).length;
-  if (tiny) warnings.push({ t: 'warn', m: `${tiny} pièce(s) de moins de 4 mm : risque d'arrachement à l'échenillage. Augmentez « Ignorer les éléments < » ou « Rapprocher les éléments ».` });
+  if (tiny) {
+    const letter = raster.some((i) => i.s.cut && i.s.shape === 'contour' && !i.s.outerOnly);
+    warnings.push({ t: 'warn', m: `${tiny} pièce(s) de moins de 4 mm : risque d'arrachement à l'échenillage.`, fix: [
+      { id: 'dropTiny', label: 'Ignorer les petits éléments', art: art.id },
+      { id: 'closeTiny', label: 'Les rattacher (2 mm)', art: art.id },
+      ...(letter ? [] : [{ id: 'scaleUp', label: 'Agrandir le visuel ×1,5', art: art.id }]),
+    ] });
+  }
   for (const it of raster) {
-    if (!fields.has(it.id)) warnings.push({ t: 'warn', m: `« ${it.name} » : aucune forme détectée (calque vide ou seuil d'opacité trop haut).` });
-    else if (it.s.shape === 'contour' && it.s.outerOnly && it.stat && it.stat.pieces > 12 && !it.s.closing) warnings.push({ t: 'info', m: `« ${it.name} » donne ${it.stat.pieces} pièces séparées. Pour un seul sticker, choisissez le mode « Un seul sticker ».` });
-    if (it.s.offset < 0 && it.s.shape === 'contour') warnings.push({ t: 'info', m: `« ${it.name} » : décalage négatif, la coupe passe ${fmt(-it.s.offset)} mm à l'intérieur du dessin.` });
+    if (!fields.has(it.id)) warnings.push({ t: 'warn', m: `« ${it.name} » : aucune forme détectée (calque vide ou seuil d'opacité trop haut).`, fix: [{ id: 'lowThr', label: 'Baisser le seuil à 10 %', art: art.id, item: it.id }, { id: 'skip', label: 'Ne pas découper ce calque', art: art.id, item: it.id }] });
+    else if (it.s.shape === 'contour' && it.s.outerOnly && it.stat && it.stat.pieces > 12 && !it.s.closing) warnings.push({ t: 'info', m: `« ${it.name} » donne ${it.stat.pieces} pièces séparées.`, fix: [{ id: 'sticker', label: 'Un seul sticker', art: art.id, item: it.id }, { id: 'letters', label: 'Chaque lettre', art: art.id, item: it.id }] });
+    if (it.s.offset < 0 && it.s.shape === 'contour') warnings.push({ t: 'info', m: `« ${it.name} » : décalage négatif, la coupe passe ${fmt(-it.s.offset)} mm à l'intérieur du dessin.`, fix: [{ id: 'offset0', label: 'Couper au ras (0 mm)', art: art.id, item: it.id }] });
   }
   for (const c of cuts) if (!NAME_RE.test(c.name)) warnings.push({ t: 'err', m: `Nom « ${c.name} » non reconnu par RasterLink.` });
   const dpiEff = art.wPx / (art.wMm / 25.4);
-  if (dpiEff < 120) warnings.push({ t: 'warn', m: `Résolution faible : ${Math.round(dpiEff)} dpi à la taille réelle. L'impression risque d'être floue.` });
+  if (dpiEff < 120) {
+    const ok = art.wPx / 150 * 25.4;
+    warnings.push({ t: 'warn', m: `Résolution faible : ${Math.round(dpiEff)} dpi à la taille réelle. L'impression risque d'être floue.`, fix: [{ id: 'size150', label: `Réduire à ${fmt(ok, 0)} mm (150 dpi)`, art: art.id, w: ok }] });
+  }
   art.result = { cuts, pb, warnings, pieces: all.length };
   art.dirty = false;
   return art.result;

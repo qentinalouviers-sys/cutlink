@@ -5,6 +5,7 @@ import { computeArt } from './engine.js';
 import { importFile, psdItem, LETTERING, STICKER } from './importers.js';
 import { buildPdf } from './pdfout.js';
 import { extractCuts } from './pdfcut.js';
+import { openStudio } from './studio.js';
 
 /* ───────────── Icônes (style SF Symbols) ───────────── */
 const ICONS = {
@@ -155,27 +156,39 @@ function computeJob() {
   if (frame) { pieces++; len += 2 * (jobW + jobH - 2); names.add(frame.name); }
 
   if (!pieces) warnings.push({ t: 'err', m: 'Aucune ligne de coupe. Activez au moins un calque.' });
-  if (jobW > pw) warnings.push({ t: 'err', m: `Travail de ${fmt(jobW)} mm de large : la CJV150-75 imprime et coupe ${pw} mm au maximum sur ce rouleau. ${S.sheet.rot ? 'Réduisez la taille ou divisez le travail.' : 'Autorisez la rotation ou divisez le travail.'}` });
-  else if (jobW > pw - 2 * R) warnings.push({ t: 'warn', m: `Travail de ${fmt(jobW)} mm : il empiète sur la réserve des repères (${R} mm de chaque côté, zone utile ${fmt(pw - 2 * R)} mm).` });
+  const big = places.map((o) => o.art).filter((a, i, l) => l.indexOf(a) === i).sort((a, b) => b.wMm - a.wMm)[0];
+  const fitW = big ? Math.floor((pw - 2 * R) * big.wMm / (fp(big)[2] - fp(big)[0])) : 0;
+  if (jobW > pw) warnings.push({ t: 'err', m: `Travail de ${fmt(jobW)} mm de large : la CJV150-75 imprime et coupe ${pw} mm au maximum sur ce rouleau.`, fix: [
+    ...(S.sheet.rot ? [] : [{ id: 'rotOn', label: 'Autoriser la rotation' }]),
+    { id: 'arrange', label: 'Réorganiser' },
+    ...(big && fitW > 10 ? [{ id: 'fitWidth', label: `Réduire « ${big.name.slice(0, 18)} » à ${fitW} mm`, art: big.id, w: fitW }] : []),
+  ] });
+  else if (jobW > pw - 2 * R) warnings.push({ t: 'warn', m: `Travail de ${fmt(jobW)} mm : il empiète sur la réserve des repères (${R} mm de chaque côté, zone utile ${fmt(pw - 2 * R)} mm).`, fix: [
+    { id: 'arrange', label: 'Réorganiser' },
+    ...(R > 10 ? [{ id: 'reserve10', label: 'Réserve à 10 mm' }] : []),
+  ] });
   const out = rects.filter((r) => r[0] < -0.01 || r[2] > pw + 0.01).length;
   const inRes = bbox[0] < R - 0.01 || bbox[2] > pw - R + 0.01 || bbox[1] < R - 0.01;
-  if (out) warnings.push({ t: 'err', m: `${out} exemplaire(s) hors de la laize imprimable.` });
-  else if (inRes && jobW <= pw - 2 * R) warnings.push({ t: 'warn', m: `Le travail${frame ? ' (cadre compris)' : ''} déborde dans la zone des repères. Réorganisez ou déplacez les exemplaires.` });
+  if (out) warnings.push({ t: 'err', m: `${out} exemplaire(s) hors de la laize imprimable.`, fix: [{ id: 'arrange', label: 'Réorganiser' }] });
+  else if (inRes && jobW <= pw - 2 * R) warnings.push({ t: 'warn', m: `Le travail${frame ? ' (cadre compris)' : ''} déborde dans la zone des repères.`, fix: [{ id: 'arrange', label: 'Réorganiser' }] });
   let ov = 0;
   if (rects.length <= 600) for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
     const a = rects[i], b = rects[j];
     if (a[0] < b[2] - 0.05 && b[0] < a[2] - 0.05 && a[1] < b[3] - 0.05 && b[1] < a[3] - 0.05) ov++;
   }
-  if (ov) warnings.push({ t: 'err', m: `${ov} chevauchement(s) entre exemplaires : impression superposée et double passage de lame. Utilisez « Réorganiser ».` });
-  if (jobH > 1000) warnings.push({ t: 'info', m: `Planche de ${fmt(jobH / 1000, 2)} m : l'écart entre repères ne doit pas dépasser 1000 mm (manuel CJV150). Vérifiez que RasterLink ajoute des repères intermédiaires, sinon scindez la planche.` });
+  if (ov) warnings.push({ t: 'err', m: `${ov} chevauchement(s) entre exemplaires : impression superposée et double passage de lame.`, fix: [{ id: 'arrange', label: 'Réorganiser' }] });
+  if (jobH > 1000) warnings.push({ t: 'info', m: `Planche de ${fmt(jobH / 1000, 2)} m : l'écart entre repères ne doit pas dépasser 1000 mm (manuel CJV150). Vérifiez que RasterLink ajoute des repères intermédiaires, sinon scindez la planche.`, fix: S.sheet.rot ? [] : [{ id: 'rotOn', label: 'Autoriser la rotation' }] });
   if (frame && !NAME_RE.test(frame.name)) warnings.push({ t: 'err', m: `Nom du cadre « ${frame.name} » non reconnu par RasterLink.` });
   const multi = S.arts.length > 1;
   for (const art of S.arts) {
     const n = S.places.filter((p) => p.artId === art.id).length;
-    if (!n) { warnings.push({ t: 'info', m: `« ${art.name} » n'est pas sur la planche (0 exemplaire).` }); continue; }
-    for (const w of art.result ? art.result.warnings : []) warnings.push({ t: w.t, m: multi ? `${art.name} — ${w.m}` : w.m });
+    if (!n) { warnings.push({ t: 'info', m: `« ${art.name} » n'est pas sur la planche (0 exemplaire).`, fix: [{ id: 'addCopy', label: 'Ajouter 1 exemplaire', art: art.id }] }); continue; }
+    for (const w of art.result ? art.result.warnings : []) warnings.push({ ...w, m: multi ? `${art.name} — ${w.m}` : w.m });
     if (art.fillCuts) warnings.push({ t: 'info', m: `${art.name} — ${art.fillCuts} forme(s) remplie(s) en CutContour ignorée(s) : RasterLink ne coupe que les contours (trait sans fond).` });
   }
+  // conseil vitrine : lettrage sans fond perdu → liseré blanc
+  const lettering = S.arts.some((a) => a.items.some((i) => i.s.cut && i.s.shape === 'contour' && !i.s.outerOnly && i.s.offset > 0));
+  if (lettering && !S.out.bleed) warnings.push({ t: 'tip', m: 'Lettrage : une marge de coupe laisse un fin liseré blanc autour des lettres.', fix: [{ id: 'flush', label: 'Coupe au ras + fond perdu 1 mm' }] });
   const hasIssue = warnings.some((w) => w.t === 'err' || w.t === 'warn');
   if (pieces && !hasIssue) warnings.unshift({ t: 'ok', m: 'Prêt pour RasterLink7 : aucune anomalie.' });
   const mediaLen = jobH + 2 * R;
@@ -530,7 +543,8 @@ function bindControls() {
 
 function renderReport() {
   const j = S.job, st = j && j.stats;
-  $('warnings').innerHTML = j ? j.warnings.map((w) => `<li class="${w.t}">${esc(w.m)}</li>`).join('') : '';
+  $('warnings').innerHTML = j ? j.warnings.map((w, i) => `<li class="${w.t}"><span>${esc(w.m)}</span>${fixButtons(w, i)}</li>`).join('') : '';
+  bindFixes($('warnings'));
   const fm = (s) => (s < 60 ? `${Math.round(s)} s` : `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, '0')}`);
   $('stats').innerHTML = st ? `
     <span>Exemplaires</span><b>${st.copies}</b>
@@ -556,6 +570,62 @@ function renderReport() {
 }
 
 /* ───────────── Rendu de la planche ───────────── */
+/* ───────────── Corrections en un clic ───────────── */
+function fixButtons(w, i) {
+  if (!w.fix || !w.fix.length) return '';
+  return `<div class="fixes">${w.fix.map((f, k) => `<button class="fix${k ? '' : ' main'}" data-w="${i}" data-f="${k}">${esc(f.label)}</button>`).join('')}</div>`;
+}
+function bindFixes(root) {
+  root.querySelectorAll('button.fix').forEach((b) => b.onclick = (e) => {
+    e.stopPropagation();
+    const w = S.job && S.job.warnings[+b.dataset.w]; const f = w && w.fix && w.fix[+b.dataset.f];
+    if (f) applyFix(f);
+  });
+}
+/** applique une correction proposée par une alerte, puis recalcule */
+function applyFix(f) {
+  const art = f.art ? S.arts.find((a) => a.id === f.art) : null;
+  const item = art && f.item ? art.items.find((i) => i.id === f.item) : null;
+  const rasterItems = art ? art.items.filter((i) => !i.vector && i.leaves.length && i.s.cut) : [];
+  const setArt = (fn) => { (item ? [item] : rasterItems).forEach((i) => { fn(i); i.cache = {}; }); if (art) art.dirty = true; };
+  const resize = (w) => { art.hMm = w * art.hMm / art.wMm; art.wMm = w; art.items.forEach((i) => { i.cache = {}; }); art.dirty = true; };
+  let msg = '';
+  switch (f.id) {
+    case 'arrange': S.sheet.auto = true; $('sAuto').checked = true; arrange(); msg = 'Planche réorganisée'; break;
+    case 'rotOn': S.sheet.rot = true; $('sRot').checked = true; S.sheet.auto = true; $('sAuto').checked = true; msg = 'Rotation autorisée'; break;
+    case 'reserve10': S.sheet.reserve = 10; syncControls(); msg = 'Réserve des repères : 10 mm'; break;
+    case 'fitWidth': resize(f.w); msg = `« ${art.name} » réduit à ${f.w} mm`; break;
+    case 'size150': resize(f.w); msg = `Taille ajustée à ${fmt(f.w, 0)} mm (150 dpi)`; break;
+    case 'scaleUp': resize(art.wMm * 1.5); msg = `Visuel agrandi à ${fmt(art.wMm, 0)} mm`; break;
+    case 'mergeOn': S.out.merge = true; markAll(); syncControls(); msg = 'Coupes fusionnées'; break;
+    case 'mergeOff': S.out.merge = false; markAll(); syncControls(); msg = 'Fusion désactivée'; break;
+    case 'dropTiny': setArt((i) => { i.s.minArea = Math.max(i.s.minArea, 12); }); msg = 'Petits éléments (< 12 mm²) ignorés'; break;
+    case 'closeTiny': setArt((i) => { i.s.closing = Math.max(i.s.closing, 2); }); msg = 'Petits éléments rattachés (2 mm)'; break;
+    case 'lowThr': setArt((i) => { i.s.thr = 10; }); msg = 'Seuil d\'opacité : 10 %'; break;
+    case 'skip': setArt((i) => { i.s.cut = false; }); msg = 'Calque non découpé'; break;
+    case 'sticker': setArt((i) => Object.assign(i.s, STICKER)); msg = 'Mode « Un seul sticker »'; break;
+    case 'letters': setArt((i) => Object.assign(i.s, LETTERING)); msg = 'Mode « Chaque lettre »'; break;
+    case 'offset0': setArt((i) => { i.s.offset = 0; }); msg = 'Coupe au ras'; break;
+    case 'addCopy': setCopies(art, 1); msg = '1 exemplaire ajouté'; break;
+    case 'flush':
+      for (const a of S.arts) for (const i of a.items) if (i.s.cut && i.s.shape === 'contour' && !i.s.outerOnly) { i.s.offset = 0; i.cache = {}; a.dirty = true; }
+      S.out.bleed = 1; markAll(); syncControls(); msg = 'Coupe au ras + fond perdu 1 mm'; break;
+    default: return;
+  }
+  save(); hideNotice(); renderInspector(); schedule(0);
+  toast(`✓ ${msg}`);
+}
+/* notification persistante (après export) avec boutons de correction */
+function showNotice(title, list) {
+  const n = $('notice'); if (!list.length) { hideNotice(); return; }
+  n.innerHTML = `<div class="nt-head"><b>${esc(title)}</b><button class="icon-btn" id="ntClose" title="Fermer">${ico('x')}</button></div>
+    <ul>${list.map((w) => `<li class="${w.t}"><span>${esc(w.m)}</span>${fixButtons(w, S.job.warnings.indexOf(w))}</li>`).join('')}</ul>`;
+  n.classList.remove('hidden');
+  $('ntClose').onclick = hideNotice;
+  bindFixes(n);
+}
+function hideNotice() { $('notice').classList.add('hidden'); }
+
 const view = $('view'), stage = $('stage');
 const RULER = 20;
 let theme = {};
@@ -804,6 +874,9 @@ async function exportPdf(withPrint) {
     setTimeout(() => URL.revokeObjectURL(url), 5000);
     const ne = j.warnings.filter((w) => w.t === 'err').length;
     toast(ne ? `${file} exporté, mais ${ne} erreur(s) restent à corriger.` : `${file} exporté (${fmt(bytes.length / 1048576, 1)} Mo).`, ne ? 'err' : '');
+    // après la sauvegarde : rappel des alertes et conseils, avec leurs boutons d'action
+    const todo = j.warnings.filter((w) => w.fix && w.fix.length && w.t !== 'ok');
+    if (todo.length) showNotice(ne ? 'PDF exporté — à corriger avant d\'imprimer' : 'PDF exporté — conseils', todo);
   } catch (e) { console.error(e); toast('Erreur export : ' + e.message, 'err'); }
   busy(false);
 }
@@ -811,6 +884,7 @@ async function exportPdf(withPrint) {
 /* ───────────── Clavier ───────────── */
 const typing = (e) => /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) && e.target.type !== 'checkbox';
 document.addEventListener('keydown', (e) => {
+  if (!$('studio').classList.contains('hidden')) return; // le studio gère ses propres raccourcis
   const mod = e.metaKey || e.ctrlKey, k = e.key.toLowerCase();
   if (e.key === 'Escape') { document.querySelectorAll('.modal:not(.hidden)').forEach((m) => m.classList.add('hidden')); if (!typing(e)) { S.selPlaces.clear(); updateSelUi(); draw(); } return; }
   if (mod && k === 'o') { e.preventDefault(); $('fileInput').click(); return; }
@@ -844,7 +918,7 @@ let dragDepth = 0;
 document.addEventListener('dragenter', (e) => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) { e.preventDefault(); dragDepth++; document.body.classList.add('dragging'); } });
 document.addEventListener('dragover', (e) => e.preventDefault());
 document.addEventListener('dragleave', () => { if (--dragDepth <= 0) { dragDepth = 0; document.body.classList.remove('dragging'); } });
-document.addEventListener('drop', (e) => { e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging'); if (e.dataTransfer.files.length) importFiles(e.dataTransfer.files); });
+document.addEventListener('drop', (e) => { e.preventDefault(); dragDepth = 0; document.body.classList.remove('dragging'); if ($('studio').classList.contains('hidden') && e.dataTransfer.files.length) importFiles(e.dataTransfer.files); });
 $('btnHelp').onclick = () => $('helpModal').classList.remove('hidden');
 $('helpModal').addEventListener('click', (e) => { if (e.target.id === 'helpModal' || e.target.closest('[data-close]')) $('helpModal').classList.add('hidden'); });
 $('btnDemo').onclick = async () => { busy(true); const r = await fetch('demo.psd'); const b = await r.blob(); await importFiles([new File([b], 'exemple-stickers.psd')]); };
@@ -852,6 +926,19 @@ $('btnExport').onclick = () => exportPdf(true);
 $('btnExportPC').onclick = () => exportPdf(true);
 $('btnExportCut').onclick = () => exportPdf(false);
 $('statusPill').onclick = () => setTab('export');
+const studioDone = async (file, info) => {
+  await importFiles([file]);
+  const a = S.arts.at(-1);
+  if (a && a.name.startsWith('Studio')) {
+    a.source = 'Studio';
+    // texte seul = lettrage (chaque lettre) ; sinon un seul contour sticker autour du dessin
+    for (const i of a.items) { Object.assign(i.s, info.onlyText ? LETTERING : { ...STICKER, offset: 1.5 }); i.cache = {}; }
+    a.dirty = true; renderInspector(); schedule(0);
+    toast(`Sticker ajouté à la planche (${fmt(info.wMm, 0)} × ${fmt(info.hMm, 0)} mm) — la découpe est calculée automatiquement.`);
+  }
+};
+$('btnStudio').onclick = () => openStudio(studioDone);
+$('btnStudio2').onclick = () => openStudio(studioDone);
 $('toolSeg').querySelectorAll('button').forEach((b) => b.onclick = () => setTool(b.dataset.tool));
 $('zIn').onclick = () => zoomCenter(1.25); $('zOut').onclick = () => zoomCenter(0.8);
 $('zVal').onclick = () => { S.view.fitted = false; draw(); };

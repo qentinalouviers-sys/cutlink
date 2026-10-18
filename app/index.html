@@ -6,7 +6,9 @@
 <meta name="color-scheme" content="light dark">
 <title>CutLink — Print & Cut Mimaki</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ff2d92'/%3E%3Ccircle cx='11' cy='22' r='4' fill='none' stroke='white' stroke-width='2.4'/%3E%3Ccircle cx='21' cy='22' r='4' fill='none' stroke='white' stroke-width='2.4'/%3E%3Cpath d='M13 19 22 6M19 19 10 6' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="style.v2.css">
+<link rel="stylesheet" href="style.v2.css?v=5">
+<link rel="stylesheet" href="studio.css?v=5">
+<link rel="stylesheet" href="fonts/fonts.css">
 </head>
 <body>
 <header id="toolbar">
@@ -34,6 +36,7 @@
     <span id="busy" class="spinner hidden" aria-label="Calcul en cours"></span>
     <button id="statusPill" class="pill hidden" title="Contrôle avant envoi"></button>
     <button class="tb-btn" id="btnHelp" title="Aide et raccourcis (?)"><i data-i="help"></i></button>
+    <button class="btn-studio" id="btnStudio" title="Créer un sticker (texte, images, formes)">✨ Créer</button>
     <label class="tb-btn" title="Importer des visuels (⌘O)"><i data-i="plus-square"></i><input type="file" id="fileInput" multiple accept=".psd,.psb,.pdf,.ai,.svg,.png,.jpg,.jpeg,.webp,.gif,.bmp" hidden></label>
     <button class="btn-primary" id="btnExport" disabled title="Exporter le PDF impression + coupe (⌘E)"><i data-i="share"></i>Exporter</button>
   </div>
@@ -64,6 +67,7 @@
           <div class="chips"><span>PSD</span><span>AI</span><span>PDF</span><span>SVG</span><span>PNG</span><span>JPG</span></div>
           <div class="empty-actions">
             <label class="btn-primary big">Choisir des fichiers…<input type="file" id="fileInput3" multiple accept=".psd,.psb,.pdf,.ai,.svg,.png,.jpg,.jpeg,.webp,.gif,.bmp" hidden></label>
+            <button class="btn-studio big" id="btnStudio2">✨ Créer un sticker</button>
             <button class="btn big" id="btnDemo">Essayer un exemple</button>
           </div>
           <p class="fine">Tout est calculé dans votre navigateur. Aucun fichier n'est envoyé.</p>
@@ -175,6 +179,8 @@
 </div>
 
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
+<div id="notice" class="notice hidden" role="status" aria-live="polite"></div>
+<div id="studio" class="studio hidden" role="dialog" aria-modal="true" aria-label="Studio de création"></div>
 
 <div id="sheetModal" class="modal hidden" role="dialog" aria-modal="true">
   <div class="modal-box small">
@@ -238,6 +244,6 @@
 </div>
 
 <script src="libs.v1.js"></script>
-<script type="module" src="js/app.js?v=4"></script>
+<script type="module" src="js/app.js?v=5"></script>
 </body>
 </html>
