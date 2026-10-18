@@ -3,6 +3,7 @@
 const { PDFDocument, PDFName } = require('pdf-lib');
 const fs = require('fs'); const path = require('path');
 const out = process.argv[2] || '.';
+fs.mkdirSync(out, { recursive: true });
 const K = 72 / 25.4;
 (async () => {
   const pdf = await PDFDocument.create();
