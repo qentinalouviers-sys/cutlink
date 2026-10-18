@@ -1,0 +1,16 @@
+{
+  "name": "cutlink-build",
+  "version": "1.0.0",
+  "description": "Build des libs CutLink",
+  "scripts": {
+    "build:libs": "esbuild entry.js --bundle --minify --format=iife --outfile=../app/libs.v1.js",
+    "demo": "node mkdemo.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "ag-psd": "^31.0.3",
+    "esbuild": "^0.28.2",
+    "pdf-lib": "^1.17.1"
+  },
+  "private": true
+}

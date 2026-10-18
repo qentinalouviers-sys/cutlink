@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CutLink — Traits de coupe Mimaki CJV150 / RasterLink</title>
+<link rel="stylesheet" href="style.v1.css">
+</head>
+<body>
+<header>
+  <div class="brand"><span class="logo">✂</span> <b>CutLink</b> <small>Traits de coupe pour Mimaki CJV150-75 · RasterLink7</small></div>
+  <div class="hdr-actions">
+    <button id="btnDemo" class="ghost">Essayer un exemple</button>
+    <button id="btnHelp" class="ghost">Mode d'emploi</button>
+    <label class="btn primary">Ouvrir un visuel<input type="file" id="fileInput" accept=".psd,.psb,.png,.jpg,.jpeg,.webp" hidden></label>
+  </div>
+</header>
+
+<main>
+  <aside id="left">
+    <section id="docPanel" class="panel hidden">
+      <h3>Document</h3>
+      <div id="docInfo" class="muted"></div>
+      <div class="row"><label>Largeur (mm)</label><input type="number" id="docW" step="0.1" min="1"></div>
+      <div class="row"><label>Hauteur (mm)</label><input type="number" id="docH" step="0.1" min="1"></div>
+    </section>
+
+    <section id="layersPanel" class="panel hidden">
+      <h3>Calques <small class="muted">— chaque calque = une forme à découper</small></h3>
+      <div class="bulk">
+        <button id="allOn" class="mini">Tout couper</button>
+        <button id="allOff" class="mini">Aucun</button>
+      </div>
+      <ul id="layerList"></ul>
+    </section>
+
+    <section id="dropHint" class="panel drop">
+      <div class="big">Déposez votre visuel ici</div>
+      <p>PSD (calques conservés), PNG transparent, JPG, WebP</p>
+      <p class="muted">Tout le travail se fait dans votre navigateur : rien n'est envoyé sur le serveur.</p>
+    </section>
+  </aside>
+
+  <section id="center">
+    <div id="toolbar">
+      <label><input type="checkbox" id="vPrint" checked> Visuel</label>
+      <label><input type="checkbox" id="vCut" checked> Coupes</label>
+      <label><input type="checkbox" id="vNodes"> Points</label>
+      <span class="sep"></span>
+      <button id="zFit" class="mini">Ajuster</button>
+      <button id="z100" class="mini">1:1 (taille réelle)</button>
+      <span id="busy" class="hidden">Calcul…</span>
+      <span id="cursorPos" class="muted"></span>
+    </div>
+    <div id="stage"><canvas id="view"></canvas></div>
+  </section>
+
+  <aside id="right">
+    <section class="panel">
+      <h3>Réglages de sortie</h3>
+      <div class="row"><label>Précision du calcul</label>
+        <select id="gPrec"><option value="2000">Rapide</option><option value="4000" selected>Standard</option><option value="6500">Haute</option></select></div>
+      <div class="row chk"><label><input type="checkbox" id="gMerge" checked> Fusionner les coupes qui se touchent</label></div>
+      <div class="hint">Évite que la lame passe deux fois au même endroit.</div>
+      <div class="row"><label>Fond perdu sous la coupe (mm)</label><input type="number" id="gBleed" value="0" step="0.5" min="0" max="5"></div>
+      <div class="hint">0 = bord blanc autour du motif. 1 mm = la couleur déborde sous la coupe (pas de liseré blanc si la coupe décale).</div>
+      <div class="row chk"><label><input type="checkbox" id="gFrame"> Ajouter un cadre de coupe autour de la planche</label></div>
+      <div id="frameOpts" class="sub hidden">
+        <div class="row"><label>Marge du cadre (mm)</label><input type="number" id="gFrameM" value="5" step="0.5"></div>
+        <div class="row"><label>Nom du cadre</label><select id="gFrameName" class="cutname"></select></div>
+      </div>
+      <div class="row"><label>Épaisseur du trait (pt)</label><input type="number" id="gStroke" value="0.25" step="0.05" min="0.05"></div>
+      <div class="row"><label>Image dans le PDF</label>
+        <select id="gImg"><option value="jpeg">JPEG qualité 95 % (léger)</option><option value="png">PNG sans perte</option></select></div>
+    </section>
+
+    <section class="panel">
+      <h3>Contrôle avant envoi</h3>
+      <div id="stats" class="muted">Aucun fichier.</div>
+      <ul id="warnings"></ul>
+    </section>
+
+    <section class="panel">
+      <button id="btnExport" class="primary wide" disabled>⬇ PDF impression + coupe</button>
+      <button id="btnExportCut" class="wide" disabled>⬇ PDF coupe seule</button>
+      <div class="hint">Les tracés utilisent la couleur d'accompagnement <b>CutContour…</b> sur un calque PDF du même nom, placé au-dessus de l'image. C'est ce que RasterLink7 détecte comme ligne de coupe.</div>
+    </section>
+  </aside>
+</main>
+
+<div id="helpModal" class="modal hidden"><div class="modal-box">
+  <button class="close" data-close>×</button>
+  <h2>Mode d'emploi</h2>
+  <ol>
+    <li><b>Ouvrez votre visuel.</b> Un PSD avec un calque par sticker ou par élément donne le meilleur résultat. Un PNG transparent fonctionne aussi. Pour un JPG sur fond uni, le fond est détouré automatiquement.</li>
+    <li><b>Vérifiez la taille réelle</b> en mm. Elle est lue dans le fichier (résolution du PSD), mais vous pouvez la corriger.</li>
+    <li><b>Réglez chaque calque.</b> Choisissez la forme : <i>Contour</i> suit le dessin, ou bien <i>Rectangle</i>, <i>Rectangle arrondi</i>, <i>Cercle</i> ou <i>Ellipse</i> autour du dessin. Réglez ensuite le <i>Décalage</i> : positif = marge blanche, négatif = coupe à l'intérieur. Les fonds pleine page sont désactivés automatiquement.</li>
+    <li><b>Choisissez le nom de la coupe :</b>
+      <ul>
+        <li><code>CutContour</code> : coupe principale (en général mi-chair / kiss-cut pour les stickers)</li>
+        <li><code>CutContourHalf</code> et <code>CutContourFull</code> : deux autres noms, si vous voulez des réglages différents dans RasterLink (par exemple pleine chair pour le cadre de la planche)</li>
+        <li>Nom personnalisé : il doit toujours commencer par <code>CutContour</code>, suivi uniquement de lettres et de chiffres sans accent.</li>
+      </ul></li>
+    <li><b>Exportez le PDF</b> et ouvrez-le dans RasterLink7 comme un travail <i>Print &amp; Cut</i>. Les traits CutContour… ne sont pas imprimés : ils sont détectés comme données de coupe. Associez à chaque nom ses conditions de coupe (pression, vitesse, mi-chair ou pleine chair). RasterLink ajoute lui-même les repères d'alignement.</li>
+  </ol>
+  <h3>Bon à savoir</h3>
+  <ul>
+    <li>Laize de la CJV150-75 : 800 mm d'impression et de coupe au maximum (810 mm de support). L'outil vous prévient si le travail est trop large.</li>
+    <li><i>Rapprocher les éléments</i> : réunit les lettres d'un texte ou des morceaux proches dans un seul contour.</li>
+    <li><i>Contour extérieur seul</i> : ne découpe pas les trous à l'intérieur du dessin (c'est le cas habituel pour un sticker).</li>
+    <li>L'image du PDF est aplatie sur fond blanc, sans transparence. Mimaki recommande cela pour éviter qu'une coupe soit faite deux fois ou ne soit pas reconnue.</li>
+  </ul>
+</div></div>
+
+<script src="libs.v1.js"></script>
+<script src="app.v2.js"></script>
+</body>
+</html>
