@@ -2,7 +2,7 @@
 /* CutLink — application : état, planche (imbrication sur la laize), interface, rendu, export. */
 import { $, MAX_PRINT_MM, PRESET_NAMES, NAME_RE, M, fmt, esc, clamp, colorOf, sleep, toast, store, bboxOf, perim, pointInPoly } from './util.js';
 import { computeArt } from './engine.js';
-import { importFile, psdItem } from './importers.js';
+import { importFile, psdItem, LETTERING, STICKER } from './importers.js';
 import { buildPdf } from './pdfout.js';
 import { extractCuts } from './pdfcut.js';
 
@@ -335,7 +335,17 @@ function renderInspector() {
       h += `<div class="vec-info">${ico('pen')}<div>Tracé vectoriel repris du fichier (${it.vector.loops.length} tracé${it.vector.loops.length > 1 ? 's' : ''}, nuance d'origine <code>${esc(it.vector.src)}</code>). Il est coupé tel quel, sans décalage.</div></div>
         <div class="field"><label>Nom de coupe</label>${nameSelect(s.name)}</div>`;
     } else {
-      h += `<div class="field" style="margin-bottom:4px"><label>Forme</label></div>
+      const isLet = s.shape === 'contour' && !s.outerOnly && !s.closing && s.offset <= 1;
+      const isStk = s.shape === 'contour' && s.outerOnly && s.closing >= 1;
+      h += `<div class="field" style="margin-bottom:4px"><label>Mode de découpe</label></div>
+        <div class="seg wide" id="presetSeg">
+          <button data-p="let" class="${isLet ? 'on' : ''}" title="Chaque lettre ou détail découpé séparément, trous compris (O, A, R…) — lettrage vitrine">Chaque lettre</button>
+          <button data-p="stk" class="${isStk ? 'on' : ''}" title="Un seul contour qui englobe tout le dessin — sticker">Un seul sticker</button>
+        </div>
+        <div class="note">${isLet ? 'Lettrage : chaque lettre a sa propre coupe, intérieurs compris.' : isStk ? 'Sticker : un contour unique autour de l\'ensemble.' : 'Réglage personnalisé.'}</div>
+        ${S.arts.length > 1 ? '<button class="link" id="presetAll">Appliquer ce mode à tous les visuels</button>' : ''}
+        <div style="height:6px"></div>
+        <div class="field" style="margin-bottom:4px"><label>Forme</label></div>
         <div class="seg icons" data-seg="shape">${SHAPES.map(([v, l]) => `<button data-v="${v}" class="${v === s.shape ? 'on' : ''}" title="${l}">${ico(v)}</button>`).join('')}</div>
         <div style="height:8px"></div>
         ${numField('Décalage', 'offset', s.offset, 0.5, 'mm')}
@@ -372,6 +382,21 @@ function renderInspector() {
   $('f_artW').oninput = (e) => { setSize(+e.target.value); $('f_artH').value = a.hMm.toFixed(1); };
   $('f_artH').oninput = (e) => { const hh = +e.target.value; if (hh > 0) { setSize(hh * a.wPx / a.hPx); $('f_artW').value = a.wMm.toFixed(1); } };
   if (!it) return;
+  const PRESETS = { let: LETTERING, stk: STICKER };
+  const applyPreset = (item, p) => { Object.assign(item.s, PRESETS[p]); item.cache = {}; };
+  const ps = $('presetSeg');
+  if (ps) ps.querySelectorAll('button').forEach((b) => b.onclick = () => {
+    applyPreset(it, b.dataset.p); S.lastPreset = b.dataset.p;
+    a.dirty = true; renderInspector(); renderLayers(); schedule();
+  });
+  const pa = $('presetAll');
+  if (pa) pa.onclick = () => {
+    const p = (it.s.outerOnly && it.s.closing >= 1) ? 'stk' : 'let';
+    let n = 0;
+    for (const art of S.arts) for (const item of art.items) if (!item.vector && item.leaves.length && item.s.cut) { applyPreset(item, p); art.dirty = true; n++; }
+    toast(`Mode « ${p === 'let' ? 'Chaque lettre' : 'Un seul sticker'} » appliqué à ${n} calque(s)`);
+    renderInspector(); renderLayers(); schedule();
+  };
   body.querySelectorAll('[data-k]').forEach((el) => {
     if (el.dataset.k.startsWith('art')) return;
     const ev = el.tagName === 'SELECT' || el.type === 'checkbox' ? 'change' : 'input';

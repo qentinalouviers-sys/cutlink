@@ -11,6 +11,9 @@ const MAX_RENDER_PX = 60e6;
 
 let ART_ID = 0, ITEM_ID = 0;
 const defaults = () => ({ cut: true, shape: 'contour', offset: 2, thr: 50, smooth: 2, outerOnly: true, closing: 0, minArea: 2, radius: 3, name: 'CutContour' });
+/** Lettrage : chaque lettre (et ses trous : O, A, R…) découpée séparément, marge fine */
+export const LETTERING = { shape: 'contour', offset: 0.5, closing: 0, outerOnly: false, smooth: 0, minArea: 0.3 };
+export const STICKER = { shape: 'contour', offset: 2, closing: 2, outerOnly: true, smooth: 2, minArea: 2 };
 
 function newArt(o) {
   const art = { id: ++ART_ID, items: [], dirty: true, result: null, bleed: null, ...o };
@@ -164,18 +167,52 @@ function rasterArt(o, extraItems = [], cutDefault = true) {
   if (isOpaque(img)) { const bg = cornerColor(img); if (bg) { shape = keyCanvas(img, bg, 40); keyed = true; } }
   const it = newItem(art, { name: extraItems.length ? 'Visuel (contour auto)' : o.name.replace(/\.[^.]+$/, ''), leaves: [{ canvas: shape, left: 0, top: 0 }], kind: 'image' });
   if (keyed) { it.tags.push('fond détouré'); art.inkBox = alphaBox(shape); }
+  // texte / lettrage détecté (beaucoup d'éléments séparés) → une coupe par lettre, au ras
+  if (countBlobs(shape) >= 4) { it.tags.push('lettrage'); Object.assign(it.s, LETTERING); }
   it.s.cut = cutDefault;
   art.items = [...extraItems.map((f) => f(art)), it];
   return art;
 }
-function isOpaque(img) { const a = img.data; for (let i = 3; i < a.length; i += 4 * 97) if (a[i] < 250) return false; return true; }
+function isOpaque(img) {
+  // ignore 3 px de bord : un PDF dont la taille ne tombe pas sur un pixel entier
+  // (Canva : 283,5 pt) a une dernière ligne semi-transparente
+  const { width: w, height: h, data: a } = img, m = 3;
+  if (w <= 2 * m || h <= 2 * m) return false;
+  let n = 0;
+  for (let y = m; y < h - m; y += 7) for (let x = m; x < w - m; x += 7) { if (a[(y * w + x) * 4 + 3] < 250) return false; n++; }
+  return n > 0;
+}
 function cornerColor(img) {
-  const { width: w, height: h, data: a } = img;
-  const pts = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1], [w >> 1, 0], [0, h >> 1]];
+  const { width: w, height: h, data: a } = img, m = Math.min(3, (w >> 2), (h >> 2));
+  const pts = [[m, m], [w - 1 - m, m], [m, h - 1 - m], [w - 1 - m, h - 1 - m], [w >> 1, m], [m, h >> 1], [w >> 1, h - 1 - m], [w - 1 - m, h >> 1]];
   const cols = pts.map(([x, y]) => { const i = (y * w + x) * 4; return [a[i], a[i + 1], a[i + 2]]; });
-  const ref = cols[0];
-  for (const c of cols) if (Math.abs(c[0] - ref[0]) + Math.abs(c[1] - ref[1]) + Math.abs(c[2] - ref[2]) > 45) return null;
-  return ref;
+  // couleur majoritaire des bords (tolère un élément qui touche un bord)
+  let best = null, bestN = 0;
+  for (const r of cols) {
+    const n = cols.filter((c) => Math.abs(c[0] - r[0]) + Math.abs(c[1] - r[1]) + Math.abs(c[2] - r[2]) <= 45).length;
+    if (n > bestN) { bestN = n; best = r; }
+  }
+  return bestN >= 6 ? best : null;
+}
+/** Nombre d'éléments séparés (lettres…) sur une version réduite du masque */
+function countBlobs(c) {
+  const k = Math.min(1, 900 / Math.max(c.width, c.height));
+  const w = Math.max(1, Math.round(c.width * k)), h = Math.max(1, Math.round(c.height * k));
+  const t = canvas(w, h), x = t.getContext('2d', { willReadFrequently: true }); x.drawImage(c, 0, 0, w, h);
+  const a = x.getImageData(0, 0, w, h).data, seen = new Uint8Array(w * h), q = new Int32Array(w * h);
+  let n = 0;
+  for (let s = 0; s < w * h; s++) {
+    if (seen[s] || a[s * 4 + 3] < 128) continue;
+    let qh = 0, qt = 0, size = 0; q[qt++] = s; seen[s] = 1;
+    while (qh < qt) {
+      const i = q[qh++], px = i % w, py = (i / w) | 0; size++;
+      for (const j of [px > 0 ? i - 1 : -1, px < w - 1 ? i + 1 : -1, py > 0 ? i - w : -1, py < h - 1 ? i + w : -1]) {
+        if (j >= 0 && !seen[j] && a[j * 4 + 3] >= 128) { seen[j] = 1; q[qt++] = j; }
+      }
+    }
+    if (size >= 4) n++;
+  }
+  return n;
 }
 function keyCanvas(img, bg, tol) {
   const out = new ImageData(new Uint8ClampedArray(img.data), img.width, img.height); const a = out.data;

@@ -307,7 +307,7 @@ export function computeArt(art, g) {
   if (tiny) warnings.push({ t: 'warn', m: `${tiny} pièce(s) de moins de 4 mm : risque d'arrachement à l'échenillage. Augmentez « Ignorer les éléments < » ou « Rapprocher les éléments ».` });
   for (const it of raster) {
     if (!fields.has(it.id)) warnings.push({ t: 'warn', m: `« ${it.name} » : aucune forme détectée (calque vide ou seuil d'opacité trop haut).` });
-    else if (it.s.shape === 'contour' && it.stat && it.stat.pieces > 12 && !it.s.closing) warnings.push({ t: 'info', m: `« ${it.name} » donne ${it.stat.pieces} pièces séparées. Pour un seul sticker, réglez « Rapprocher les éléments » sur 2-3 mm.` });
+    else if (it.s.shape === 'contour' && it.s.outerOnly && it.stat && it.stat.pieces > 12 && !it.s.closing) warnings.push({ t: 'info', m: `« ${it.name} » donne ${it.stat.pieces} pièces séparées. Pour un seul sticker, choisissez le mode « Un seul sticker ».` });
     if (it.s.offset < 0 && it.s.shape === 'contour') warnings.push({ t: 'info', m: `« ${it.name} » : décalage négatif, la coupe passe ${fmt(-it.s.offset)} mm à l'intérieur du dessin.` });
   }
   for (const c of cuts) if (!NAME_RE.test(c.name)) warnings.push({ t: 'err', m: `Nom « ${c.name} » non reconnu par RasterLink.` });
