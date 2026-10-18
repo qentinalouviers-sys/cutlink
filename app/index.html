@@ -3,116 +3,241 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>CutLink — Traits de coupe Mimaki CJV150 / RasterLink</title>
-<link rel="stylesheet" href="style.v1.css">
+<meta name="color-scheme" content="light dark">
+<title>CutLink — Print & Cut Mimaki</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23ff2d92'/%3E%3Ccircle cx='11' cy='22' r='4' fill='none' stroke='white' stroke-width='2.4'/%3E%3Ccircle cx='21' cy='22' r='4' fill='none' stroke='white' stroke-width='2.4'/%3E%3Cpath d='M13 19 22 6M19 19 10 6' stroke='white' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.v2.css">
 </head>
 <body>
-<header>
-  <div class="brand"><span class="logo">✂</span> <b>CutLink</b> <small>Traits de coupe pour Mimaki CJV150-75 · RasterLink7</small></div>
-  <div class="hdr-actions">
-    <button id="btnDemo" class="ghost">Essayer un exemple</button>
-    <button id="btnHelp" class="ghost">Mode d'emploi</button>
-    <label class="btn primary">Ouvrir un visuel<input type="file" id="fileInput" accept=".psd,.psb,.png,.jpg,.jpeg,.webp" hidden></label>
+<header id="toolbar">
+  <div class="tb-left">
+    <div class="app-icon" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="11" cy="22" r="4"/><circle cx="21" cy="22" r="4"/><path d="M13 19 22 6M19 19 10 6"/></svg></div>
+    <div class="title"><b>CutLink</b><span id="docTitle">Print &amp; Cut · CJV150-75</span></div>
+  </div>
+  <div class="tb-center">
+    <div class="seg" id="toolSeg" role="radiogroup" aria-label="Outil">
+      <button data-tool="select" class="on" title="Sélection (V)"><i data-i="cursor"></i></button>
+      <button data-tool="hand" title="Main (H, ou maintenir Espace)"><i data-i="hand"></i></button>
+    </div>
+    <div class="zoom">
+      <button class="tb-btn" id="zOut" title="Zoom arrière (⌘−)"><i data-i="minus"></i></button>
+      <button class="tb-btn zval" id="zVal" title="Ajuster à la fenêtre (⌘0)">100 %</button>
+      <button class="tb-btn" id="zIn" title="Zoom avant (⌘+)"><i data-i="plus"></i></button>
+    </div>
+    <div class="tb-group">
+      <button class="tb-btn" id="bRotate" title="Pivoter de 90° (R)" disabled><i data-i="rotate"></i></button>
+      <button class="tb-btn" id="bDup" title="Dupliquer (⌘D)" disabled><i data-i="dup"></i></button>
+      <button class="tb-btn" id="bArrange" title="Réorganiser la planche (A)"><i data-i="grid"></i></button>
+    </div>
+  </div>
+  <div class="tb-right">
+    <span id="busy" class="spinner hidden" aria-label="Calcul en cours"></span>
+    <button id="statusPill" class="pill hidden" title="Contrôle avant envoi"></button>
+    <button class="tb-btn" id="btnHelp" title="Aide et raccourcis (?)"><i data-i="help"></i></button>
+    <label class="tb-btn" title="Importer des visuels (⌘O)"><i data-i="plus-square"></i><input type="file" id="fileInput" multiple accept=".psd,.psb,.pdf,.ai,.svg,.png,.jpg,.jpeg,.webp,.gif,.bmp" hidden></label>
+    <button class="btn-primary" id="btnExport" disabled title="Exporter le PDF impression + coupe (⌘E)"><i data-i="share"></i>Exporter</button>
   </div>
 </header>
 
-<main>
-  <aside id="left">
-    <section id="docPanel" class="panel hidden">
-      <h3>Document</h3>
-      <div id="docInfo" class="muted"></div>
-      <div class="row"><label>Largeur (mm)</label><input type="number" id="docW" step="0.1" min="1"></div>
-      <div class="row"><label>Hauteur (mm)</label><input type="number" id="docH" step="0.1" min="1"></div>
-    </section>
-
-    <section id="layersPanel" class="panel hidden">
-      <h3>Calques <small class="muted">— chaque calque = une forme à découper</small></h3>
-      <div class="bulk">
-        <button id="allOn" class="mini">Tout couper</button>
-        <button id="allOff" class="mini">Aucun</button>
-      </div>
-      <ul id="layerList"></ul>
-    </section>
-
-    <section id="dropHint" class="panel drop">
-      <div class="big">Déposez votre visuel ici</div>
-      <p>PSD (calques conservés), PNG transparent, JPG, WebP</p>
-      <p class="muted">Tout le travail se fait dans votre navigateur : rien n'est envoyé sur le serveur.</p>
-    </section>
-  </aside>
-
-  <section id="center">
-    <div id="toolbar">
-      <label><input type="checkbox" id="vPrint" checked> Visuel</label>
-      <label><input type="checkbox" id="vCut" checked> Coupes</label>
-      <label><input type="checkbox" id="vNodes"> Points</label>
-      <span class="sep"></span>
-      <button id="zFit" class="mini">Ajuster</button>
-      <button id="z100" class="mini">1:1 (taille réelle)</button>
-      <span id="busy" class="hidden">Calcul…</span>
-      <span id="cursorPos" class="muted"></span>
+<div id="shell">
+  <aside id="sidebar">
+    <div class="sb-section">
+      <div class="sb-head"><span>Visuels</span><label class="icon-btn" title="Importer"><i data-i="plus"></i><input type="file" id="fileInput2" multiple accept=".psd,.psb,.pdf,.ai,.svg,.png,.jpg,.jpeg,.webp,.gif,.bmp" hidden></label></div>
+      <ul id="artList" class="list"></ul>
+      <div id="artEmpty" class="sb-empty">Aucun visuel.<br><span>PSD, AI, PDF, SVG, PNG, JPG</span></div>
     </div>
-    <div id="stage"><canvas id="view"></canvas></div>
-  </section>
+    <div class="sb-section grow" id="layerSection" hidden>
+      <div class="sb-head"><span id="layerHead">Calques</span>
+        <span class="sb-actions"><button class="link" id="allOn">Tout</button><button class="link" id="allOff">Aucun</button></span></div>
+      <ul id="layerList" class="list"></ul>
+    </div>
+  </aside>
 
-  <aside id="right">
-    <section class="panel">
-      <h3>Réglages de sortie</h3>
-      <div class="row"><label>Précision du calcul</label>
-        <select id="gPrec"><option value="2000">Rapide</option><option value="4000" selected>Standard</option><option value="6500">Haute</option></select></div>
-      <div class="row chk"><label><input type="checkbox" id="gMerge" checked> Fusionner les coupes qui se touchent</label></div>
-      <div class="hint">Évite que la lame passe deux fois au même endroit.</div>
-      <div class="row"><label>Fond perdu sous la coupe (mm)</label><input type="number" id="gBleed" value="0" step="0.5" min="0" max="5"></div>
-      <div class="hint">0 = bord blanc autour du motif. 1 mm = la couleur déborde sous la coupe (pas de liseré blanc si la coupe décale).</div>
-      <div class="row chk"><label><input type="checkbox" id="gFrame"> Ajouter un cadre de coupe autour de la planche</label></div>
-      <div id="frameOpts" class="sub hidden">
-        <div class="row"><label>Marge du cadre (mm)</label><input type="number" id="gFrameM" value="5" step="0.5"></div>
-        <div class="row"><label>Nom du cadre</label><select id="gFrameName" class="cutname"></select></div>
+  <main id="center">
+    <div id="stage">
+      <canvas id="view"></canvas>
+      <div id="empty">
+        <div class="empty-card">
+          <div class="empty-icon"><svg viewBox="0 0 64 64"><rect x="8" y="12" width="48" height="40" rx="6"/><path d="M8 40 22 28l10 9 8-7 16 14"/><circle cx="42" cy="24" r="4"/></svg></div>
+          <h1>Déposez vos visuels</h1>
+          <p>CutLink trace les lignes de coupe, place vos stickers sur la laize de la CJV150-75 et exporte un PDF que RasterLink7 reconnaît directement.</p>
+          <div class="chips"><span>PSD</span><span>AI</span><span>PDF</span><span>SVG</span><span>PNG</span><span>JPG</span></div>
+          <div class="empty-actions">
+            <label class="btn-primary big">Choisir des fichiers…<input type="file" id="fileInput3" multiple accept=".psd,.psb,.pdf,.ai,.svg,.png,.jpg,.jpeg,.webp,.gif,.bmp" hidden></label>
+            <button class="btn big" id="btnDemo">Essayer un exemple</button>
+          </div>
+          <p class="fine">Tout est calculé dans votre navigateur. Aucun fichier n'est envoyé.</p>
+        </div>
       </div>
-      <div class="row"><label>Épaisseur du trait (pt)</label><input type="number" id="gStroke" value="0.25" step="0.05" min="0.05"></div>
-      <div class="row"><label>Image dans le PDF</label>
-        <select id="gImg"><option value="jpeg">JPEG qualité 95 % (léger)</option><option value="png">PNG sans perte</option></select></div>
+      <div id="hud" class="hidden">
+        <label><input type="checkbox" id="vPrint" checked><span>Visuel</span></label>
+        <label><input type="checkbox" id="vCut" checked><span>Coupes</span></label>
+        <label><input type="checkbox" id="vNodes"><span>Points</span></label>
+        <label><input type="checkbox" id="vMarks" checked><span>Zone repères</span></label>
+        <span class="hud-sep"></span>
+        <span id="cursorPos">—</span>
+      </div>
+      <div id="dropOverlay"><div>Déposez pour importer</div></div>
+    </div>
+  </main>
+
+  <aside id="inspector">
+    <div class="seg wide" id="tabSeg" role="tablist">
+      <button data-tab="cut" class="on">Coupe</button>
+      <button data-tab="sheet">Planche</button>
+      <button data-tab="export">Export</button>
+    </div>
+
+    <section class="tab" data-tab="cut" id="tabCut">
+      <div id="cutEmpty" class="insp-empty">Sélectionnez un calque ou un visuel pour régler sa découpe.</div>
+      <div id="cutBody" hidden></div>
     </section>
 
-    <section class="panel">
-      <h3>Contrôle avant envoi</h3>
-      <div id="stats" class="muted">Aucun fichier.</div>
-      <ul id="warnings"></ul>
+    <section class="tab" data-tab="sheet" id="tabSheet" hidden>
+      <div class="group">
+        <h4>Support</h4>
+        <div class="field"><label class="scrub" data-for="sRoll" data-step="10">Largeur du rouleau</label>
+          <div class="inp"><input type="number" id="sRoll" min="100" max="810" step="1"><em>mm</em></div></div>
+        <div class="presets" id="rollPresets"><button data-v="810">810</button><button data-v="760">760</button><button data-v="610">610</button><button data-v="500">500</button><button data-v="300">300</button></div>
+        <div class="note" id="printableNote"></div>
+        <div class="field"><label class="scrub" data-for="sReserve" data-step="1">Réserve repères</label>
+          <div class="inp"><input type="number" id="sReserve" min="0" max="60" step="1"><em>mm</em></div></div>
+        <div class="note">Marge laissée tout autour du travail pour les repères que RasterLink7 ajoute (Image Edit › Register Mark).</div>
+        <div class="field"><label class="scrub" data-for="sGap" data-step="0.5">Espacement</label>
+          <div class="inp"><input type="number" id="sGap" min="0" max="50" step="0.5"><em>mm</em></div></div>
+      </div>
+      <div class="group">
+        <h4>Disposition</h4>
+        <div class="switch-row"><span>Disposition automatique</span><label class="switch"><input type="checkbox" id="sAuto"><i></i></label></div>
+        <div class="switch-row"><span>Autoriser la rotation</span><label class="switch"><input type="checkbox" id="sRot"><i></i></label></div>
+        <button class="btn wide" id="bArrange2"><i data-i="grid"></i>Réorganiser maintenant</button>
+        <div id="selActions" class="sel-actions" hidden>
+          <div class="note" id="selInfo"></div>
+          <div class="btn-row">
+            <button class="btn" id="bRotate2"><i data-i="rotate"></i>Pivoter</button>
+            <button class="btn" id="bDup2"><i data-i="dup"></i>Dupliquer</button>
+            <button class="btn danger" id="bDel"><i data-i="trash"></i>Retirer</button>
+          </div>
+        </div>
+      </div>
+      <div class="group">
+        <h4>Cadre de planche</h4>
+        <div class="switch-row"><span>Couper un cadre autour du travail</span><label class="switch"><input type="checkbox" id="gFrame"><i></i></label></div>
+        <div id="frameOpts" hidden>
+          <div class="field"><label class="scrub" data-for="gFrameM" data-step="0.5">Marge</label><div class="inp"><input type="number" id="gFrameM" step="0.5" min="0"><em>mm</em></div></div>
+          <div class="field"><label>Nom</label><select id="gFrameName" class="cutname"></select></div>
+          <div class="note">En général pleine chair (<code>CutContourFull</code>) pour détacher la planche du rouleau.</div>
+        </div>
+      </div>
+      <div class="group">
+        <h4>Utilisation</h4>
+        <div id="sheetStats" class="kv"></div>
+      </div>
     </section>
 
-    <section class="panel">
-      <button id="btnExport" class="primary wide" disabled>⬇ PDF impression + coupe</button>
-      <button id="btnExportCut" class="wide" disabled>⬇ PDF coupe seule</button>
-      <div class="hint">Les tracés utilisent la couleur d'accompagnement <b>CutContour…</b> sur un calque PDF du même nom, placé au-dessus de l'image. C'est ce que RasterLink7 détecte comme ligne de coupe.</div>
+    <section class="tab" data-tab="export" id="tabExport" hidden>
+      <div class="group">
+        <h4>Contrôle avant envoi</h4>
+        <ul id="warnings"></ul>
+      </div>
+      <div class="group">
+        <h4>Récapitulatif</h4>
+        <div id="stats" class="kv"></div>
+      </div>
+      <div class="group">
+        <button class="btn-primary wide" id="btnExportPC" disabled><i data-i="share"></i>PDF impression + coupe</button>
+        <button class="btn wide" id="btnExportCut" disabled>PDF coupe seule</button>
+        <div class="note">Les tracés sont dans la couleur d'accompagnement <b>CutContour…</b>, sur un calque PDF du même nom placé au-dessus de l'image, sans transparence. C'est ce que RasterLink7 détecte comme ligne de coupe.</div>
+      </div>
+      <div class="group">
+        <h4>Réglages de sortie</h4>
+        <div class="field"><label>Précision</label>
+          <div class="seg small" id="precSeg"><button data-v="2000">Rapide</button><button data-v="4000">Standard</button><button data-v="6500">Haute</button></div></div>
+        <div class="switch-row"><span>Fusionner les coupes qui se touchent</span><label class="switch"><input type="checkbox" id="gMerge"><i></i></label></div>
+        <div class="field"><label class="scrub" data-for="gBleed" data-step="0.5">Fond perdu</label><div class="inp"><input type="number" id="gBleed" step="0.5" min="0" max="5"><em>mm</em></div></div>
+        <div class="note">0 = liseré blanc. 1 mm = la couleur déborde sous la coupe, pas de bord blanc si la coupe décale un peu.</div>
+        <div class="field"><label class="scrub" data-for="gStroke" data-step="0.05">Épaisseur du trait</label><div class="inp"><input type="number" id="gStroke" step="0.05" min="0.05"><em>pt</em></div></div>
+        <div class="field"><label>Image</label><select id="gImg"><option value="jpeg">JPEG 95 % (léger)</option><option value="png">PNG sans perte</option></select></div>
+        <div class="field"><label class="scrub" data-for="gSpeed" data-step="1">Vitesse de coupe</label><div class="inp"><input type="number" id="gSpeed" min="1" max="30" step="1"><em>cm/s</em></div></div>
+        <div class="field"><label class="scrub" data-for="gPrice" data-step="0.5">Prix du support</label><div class="inp"><input type="number" id="gPrice" min="0" step="0.5"><em>€/m²</em></div></div>
+      </div>
+      <details class="group rl">
+        <summary>Dans RasterLink7</summary>
+        <ol>
+          <li>Ouvrez le PDF : il est reconnu comme travail <b>Print &amp; Cut</b>.</li>
+          <li><b>Image Edit › Register Mark</b> : choisissez le type de repères (Type 1 par défaut). Gardez au moins la taille recommandée.</li>
+          <li><b>Cut Edit</b> : pour chaque nom (<code>CutContour</code>, <code>CutContourHalf</code>, <code>CutContourFull</code>…) réglez outil, pression, vitesse et décalage.</li>
+          <li>Imprimez, laissez sécher, puis lancez la coupe : la CJV150 lit les repères avant de couper.</li>
+        </ol>
+      </details>
     </section>
   </aside>
-</main>
+</div>
 
-<div id="helpModal" class="modal hidden"><div class="modal-box">
-  <button class="close" data-close>×</button>
-  <h2>Mode d'emploi</h2>
-  <ol>
-    <li><b>Ouvrez votre visuel.</b> Un PSD avec un calque par sticker ou par élément donne le meilleur résultat. Un PNG transparent fonctionne aussi. Pour un JPG sur fond uni, le fond est détouré automatiquement.</li>
-    <li><b>Vérifiez la taille réelle</b> en mm. Elle est lue dans le fichier (résolution du PSD), mais vous pouvez la corriger.</li>
-    <li><b>Réglez chaque calque.</b> Choisissez la forme : <i>Contour</i> suit le dessin, ou bien <i>Rectangle</i>, <i>Rectangle arrondi</i>, <i>Cercle</i> ou <i>Ellipse</i> autour du dessin. Réglez ensuite le <i>Décalage</i> : positif = marge blanche, négatif = coupe à l'intérieur. Les fonds pleine page sont désactivés automatiquement.</li>
-    <li><b>Choisissez le nom de la coupe :</b>
-      <ul>
-        <li><code>CutContour</code> : coupe principale (en général mi-chair / kiss-cut pour les stickers)</li>
-        <li><code>CutContourHalf</code> et <code>CutContourFull</code> : deux autres noms, si vous voulez des réglages différents dans RasterLink (par exemple pleine chair pour le cadre de la planche)</li>
-        <li>Nom personnalisé : il doit toujours commencer par <code>CutContour</code>, suivi uniquement de lettres et de chiffres sans accent.</li>
-      </ul></li>
-    <li><b>Exportez le PDF</b> et ouvrez-le dans RasterLink7 comme un travail <i>Print &amp; Cut</i>. Les traits CutContour… ne sont pas imprimés : ils sont détectés comme données de coupe. Associez à chaque nom ses conditions de coupe (pression, vitesse, mi-chair ou pleine chair). RasterLink ajoute lui-même les repères d'alignement.</li>
-  </ol>
-  <h3>Bon à savoir</h3>
-  <ul>
-    <li>Laize de la CJV150-75 : 800 mm d'impression et de coupe au maximum (810 mm de support). L'outil vous prévient si le travail est trop large.</li>
-    <li><i>Rapprocher les éléments</i> : réunit les lettres d'un texte ou des morceaux proches dans un seul contour.</li>
-    <li><i>Contour extérieur seul</i> : ne découpe pas les trous à l'intérieur du dessin (c'est le cas habituel pour un sticker).</li>
-    <li>L'image du PDF est aplatie sur fond blanc, sans transparence. Mimaki recommande cela pour éviter qu'une coupe soit faite deux fois ou ne soit pas reconnue.</li>
-  </ul>
-</div></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<div id="sheetModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box small">
+    <h3>Nouveau nom de coupe</h3>
+    <p class="muted">Il doit commencer par <code>CutContour</code>, suivi uniquement de lettres et de chiffres sans accent (exigence RasterLink7).</p>
+    <input type="text" id="newName" value="CutContourKiss" spellcheck="false" autocomplete="off">
+    <div class="err-line" id="newNameErr"></div>
+    <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn-primary" id="newNameOk">Ajouter</button></div>
+  </div>
+</div>
+
+<div id="helpModal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-box">
+    <button class="icon-btn close" data-close title="Fermer (Échap)"><i data-i="x"></i></button>
+    <h2>CutLink</h2>
+    <p class="muted">De votre visuel à la coupe sur la Mimaki CJV150-75, sans Illustrator ni plugin.</p>
+    <div class="help-grid">
+      <div>
+        <h3>Flux de travail</h3>
+        <ol>
+          <li><b>Importez</b> : PSD (un calque = une coupe), AI/PDF (les tracés <code>CutContour</code> d'Illustrator sont repris tels quels), SVG, PNG transparent, JPG sur fond uni (détouré automatiquement).</li>
+          <li><b>Vérifiez la taille</b> en mm dans l'onglet Coupe.</li>
+          <li><b>Réglez chaque calque</b> : forme, décalage (positif = marge blanche, négatif = coupe intérieure), nom de coupe.</li>
+          <li><b>Composez la planche</b> : nombre d'exemplaires, disposition automatique sur la laize, rotation.</li>
+          <li><b>Exportez</b> et ouvrez le PDF dans RasterLink7.</li>
+        </ol>
+        <h3>Noms de coupe</h3>
+        <ul>
+          <li><code>CutContour</code> : coupe principale, en général mi-chair (kiss-cut).</li>
+          <li><code>CutContourHalf</code>, <code>CutContourFull</code> : d'autres conditions de coupe dans RasterLink (par exemple pleine chair pour le cadre).</li>
+          <li>Nom libre : <code>CutContour</code> + lettres/chiffres ASCII.</li>
+        </ul>
+      </div>
+      <div>
+        <h3>Raccourcis</h3>
+        <table class="keys">
+          <tr><td><kbd>⌘</kbd><kbd>O</kbd></td><td>Importer</td></tr>
+          <tr><td><kbd>⌘</kbd><kbd>E</kbd></td><td>Exporter impression + coupe</td></tr>
+          <tr><td><kbd>⇧</kbd><kbd>⌘</kbd><kbd>E</kbd></td><td>Exporter coupe seule</td></tr>
+          <tr><td><kbd>V</kbd> / <kbd>H</kbd></td><td>Sélection / Main</td></tr>
+          <tr><td><kbd>Espace</kbd></td><td>Main temporaire</td></tr>
+          <tr><td><kbd>⌘</kbd><kbd>0</kbd> / <kbd>⌘</kbd><kbd>1</kbd></td><td>Ajuster / Taille réelle</td></tr>
+          <tr><td><kbd>⌘</kbd><kbd>+</kbd> <kbd>⌘</kbd><kbd>−</kbd></td><td>Zoom (ou ⌥ + molette, pincement)</td></tr>
+          <tr><td><kbd>⌘</kbd><kbd>D</kbd></td><td>Dupliquer</td></tr>
+          <tr><td><kbd>R</kbd></td><td>Pivoter de 90°</td></tr>
+          <tr><td><kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd></td><td>Déplacer de 1 mm (⇧ 10 mm)</td></tr>
+          <tr><td><kbd>⌫</kbd></td><td>Retirer de la planche</td></tr>
+          <tr><td><kbd>A</kbd></td><td>Réorganiser</td></tr>
+          <tr><td><kbd>⌘</kbd><kbd>A</kbd> / <kbd>Échap</kbd></td><td>Tout / rien sélectionner</td></tr>
+        </table>
+        <p class="muted">Les libellés des champs numériques se glissent à la souris pour changer la valeur, comme dans Photoshop.</p>
+        <h3>CJV150-75</h3>
+        <ul>
+          <li>800 mm d'impression et de coupe au maximum, rouleau de 810 mm au plus.</li>
+          <li>Repères : écart entre repères ≥ 2 × leur taille et ≤ 1000 mm. Repères noirs sur fond blanc pour une bonne détection.</li>
+          <li>Évitez les pièces de moins de 4 mm : elles s'arrachent à l'échenillage.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script src="libs.v1.js"></script>
-<script src="app.v2.js"></script>
+<script type="module" src="js/app.js?v=3"></script>
 </body>
 </html>

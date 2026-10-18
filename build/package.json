@@ -4,13 +4,16 @@
   "description": "Build des libs CutLink",
   "scripts": {
     "build:libs": "esbuild entry.js --bundle --minify --format=iife --outfile=../app/libs.v1.js",
-    "demo": "node mkdemo.js"
+    "build:pdfjs": "node -e \"for (const f of ['pdf.min.mjs','pdf.worker.min.mjs']) require('fs').copyFileSync('node_modules/pdfjs-dist/build/'+f,'../app/vendor/'+f)\"",
+    "demo": "node mkdemo.js",
+    "fixtures": "node mkfixtures.js /tmp/cutlink-fx"
   },
   "license": "MIT",
   "dependencies": {
     "ag-psd": "^31.0.3",
     "esbuild": "^0.28.2",
-    "pdf-lib": "^1.17.1"
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "4.10.38"
   },
   "private": true
 }
